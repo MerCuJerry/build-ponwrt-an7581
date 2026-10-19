@@ -1,0 +1,87 @@
+name: Build PonWrt (Airoha AN7581)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_device:
+        description: '机型（必须是 an7581.mk 里 TARGET_DEVICES 之一）'
+        required: true
+        default: 'znxt_zn504xg-d'
+        type: choice
+        options:
+          - fiberhome_hg5382a
+          - fiberhome_hg5585f-ct
+          - fiberhome_hg5585f-cu
+          - gemtek_xg2010g
+          - znxt_zn504xg-d
+          - znxt_zn515xg-d
+          - nokia_xg-040g-md-ubi
+          - nokia_xg-040g-tf-ubi
+          - unionman_ung00a
+          - h3c_hm2004-du
+  push:
+    branches:
+      - main
+  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+
+    env:
+      TARGET_DEVICE: ${{ github.event.inputs.target_device}}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-zn504xg-d-an7581
+          restore-keys: ccache-zn504xg-d-an7581
+
+      - name: Prepare build environment
+        run: |
+          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
+      - name: Get source code
+        uses: actions/checkout@v5
+        with:
+          repository: pbs05/ponwrt
+          ref: main
+          path: source/
+
+      - name: install feeds
+        run: |
+          cd source
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+      
+      - name: Build firmware
+        run: |
+          cd source
+          cp configs/an7581.config .config
+          make defconfig
+          make -j$(nproc)
+
+      - name: Upload firmware
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponwrt-${{ env.TARGET_DEVICE }}
+          path: source/bin/targets/airoha/an7581/*
+          if-no-files-found: error
+          compression-level: 9
