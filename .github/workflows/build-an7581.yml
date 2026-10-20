@@ -45,7 +45,7 @@ jobs:
 
       - name: Copy config
         working-directory: src
-        run: cp configs/an7581.config .config
+        run: cp ../.config .config
 
       - name: Restore toolchain cache
         id: cache-toolchain
