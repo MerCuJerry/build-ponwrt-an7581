@@ -89,7 +89,8 @@ jobs:
           compression-level: 9
 
       - name: cleanup
-        if: always()
+        if: success()
+        working-directory: src
         run: |
           make clean
 
